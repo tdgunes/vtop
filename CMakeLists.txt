@@ -10,7 +10,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 set(SOURCE_FILES main.cpp)
 
 
-add_executable(vtop ${SOURCE_FILES} main.cpp)
+add_executable(vtop ${SOURCE_FILES} main.cpp process.h process.cpp)
 target_link_libraries(vtop ${CURSES_LIBRARIES})
 
 include_directories(${CURSES_INCLUDE_DIR})
