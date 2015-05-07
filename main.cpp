@@ -1,27 +1,12 @@
 #include <ncurses.h>
 #include <stdlib.h>
 #include <string.h>
+#include <signal.h>
 #include "process.h"
 
-//#define MAXLEN 128
-//
-//typedef struct Line {
-//    char contents[MAXLEN];
-//    struct Line *prev, *next;
-//} Line;
-//
-//Line *head, *curr;
-//
-//int nr_lines;
-//int curr_line;
-//
-
-//
-//void load(const char *filename);
-//void draw(Line *l);
-
-
-
+#define HEADER_COLOR 1
+#define SELECTED 2
+#define NORMAL 3
 
 
 struct v_process {
@@ -32,9 +17,12 @@ struct v_process {
 };
 
 
-int TERM_ROWS, TERM_COLS;
+int TERM_ROWS = 0, TERM_COLS = 0;
+int CURSOR = 0, START_INDEX = 0;
 
 void addline(const char* str);
+void add_fline(const char *str, ...);
+void draw(v_process** proc_list, int proc_num);
 
 int main(int argc, char **argv) {
 
@@ -56,78 +44,100 @@ int main(int argc, char **argv) {
 
 
     start_color();
-    init_pair(1, COLOR_BLACK, COLOR_GREEN);
-    attron(COLOR_PAIR(1));
+    init_pair(SELECTED, COLOR_BLACK, COLOR_CYAN);
+    init_pair(NORMAL, COLOR_WHITE, COLOR_BLACK);
+    init_pair(HEADER_COLOR, COLOR_BLACK, COLOR_GREEN);
 
-    addline(" PID USER CPU% COMMAND");
 
-    attroff(COLOR_PAIR(1));
 
 
     for (int i = 0; i < proc_num; ++i) {
         struct kinfo_proc* process = &proc_list[i];
         struct passwd* user = getpwuid(process->kp_eproc.e_ucred.cr_uid);
-        wprintw(window, " %i %s %s\n", process->kp_proc.p_pid,  user->pw_name ,process->kp_proc.p_comm);
+        struct v_process* x = (v_process*) malloc(sizeof *x);
+        x->command = process->kp_proc.p_comm;
+        x->user = user->pw_name;
+        x->pid = process->kp_proc.p_pid;
+        v_proc_list[i] = x;
     }
 
 
 
     addstr("\n");
 
-
-//    addline(" CPU: 12.4%\n");
-//    wprintw(window, "x%i y:%i\n",TERM_ROWS, TERM_COLS);
-//    addstr(" Mem: 1204/8123M (12.4%)\n");
-//    addstr(" Swap 10.2%\n");
-//    addstr(" Tasks: \n");
-//    addstr(" Uptime: 1 day, 00:51:33\n");
-//    addstr("\n");
-
-
-
-//    for (int i = 0; i < TERM_ROWS; ++i) {
-//        wprintw(window, "%i\n",i);
-//    }
+    draw(v_proc_list, proc_num);
 
     int ch;
     while ((ch = getch()) != EOF && ch != 'q') {
 
 
-//        if (ch == KEY_UP && curr->prev != NULL) {
-//            curr_line--;
-//            curr = curr->prev;
-//        }
-//        else if (ch == KEY_DOWN && curr->next != NULL
-//                 && curr_line + TERM_ROWS < nr_lines) {
-//            curr_line++;
-//            curr = curr->next;
-//        }
-//        draw(curr);
+        if (ch == KEY_UP) {
+            if (CURSOR == 0){
+                if (START_INDEX > 0)
+                    START_INDEX--;
+
+            }
+            else {
+                CURSOR--;
+            }
+        }
+        else if (ch == KEY_DOWN) {
+            if (CURSOR == TERM_ROWS - 1) {
+                if (START_INDEX+TERM_ROWS-2 < proc_num)
+                    START_INDEX++;
+            }
+            else {
+                CURSOR++;
+            }
+
+        }
+        else if (ch == KEY_RIGHT){
+            v_process* p = v_proc_list[CURSOR];
+            kill(p->pid, SIGKILL);
+        }
+        draw(v_proc_list, proc_num);
     }
 
-//    load(argv[1]);
-//
-//    curr = head;
-//    curr_line = 0;
-//    draw(curr);
-//
-//    int ch;
-//    while ((ch = getch()) != EOF && ch != 'q')
-//    {
-//        if (ch == KEY_UP && curr->prev != NULL) {
-//            curr_line--;
-//            curr = curr->prev;
-//        }
-//        else if (ch == KEY_DOWN && curr->next != NULL
-//                 && curr_line + TERM_ROWS < nr_lines) {
-//            curr_line++;
-//            curr = curr->next;
-//        }
-//        draw(curr);
-//    }
 
     endwin();
     return 0;
+}
+
+void draw(v_process** proc_list, int proc_num) {
+    clear();
+
+    attron(COLOR_PAIR(HEADER_COLOR));
+    addline("   PID    USER COMMAND");
+    attroff(COLOR_PAIR(HEADER_COLOR));
+
+    if (proc_list!=NULL){
+        for (int i = START_INDEX; i < TERM_ROWS; ++i) {
+            if (i < proc_num){
+                v_process* p = proc_list[i];
+
+                if (CURSOR == i) {
+                    attron(COLOR_PAIR(SELECTED));
+                    add_fline(" %5i %7s %s", p->pid,  p->user, p->command);
+                    attroff(COLOR_PAIR(SELECTED));
+                }
+                else {
+                    attron(COLOR_PAIR(NORMAL));
+                    add_fline(" %5i %7s %s", p->pid,  p->user, p->command);
+                    attroff(COLOR_PAIR(NORMAL));
+                }
+
+            }
+        }
+    }
+}
+
+void add_fline(const char *str, ...) {
+    char line[TERM_COLS];
+    va_list args;
+    va_start(args, str);
+    vsnprintf(line, TERM_COLS-1, str, args);
+    addline(line);
+    va_end(args);
 }
 
 void addline(const char *str){
@@ -138,40 +148,10 @@ void addline(const char *str){
     for (int i = 0; i < empty_length; ++i) {
         empty[i] = ' ';
     }
+    empty[empty_length-2] = '\n';
     empty[empty_length-1] = '\0';
 
     strcpy(line, str);
     strcat(line, empty);
     addstr(line);
 }
-
-//void load(const char *filename) {
-//
-//
-//
-//
-//    FILE *fp = fopen(filename, "r");
-//    Line *lp;
-//
-//    head = (Line *)malloc(sizeof(Line));
-//    head->prev = head->next = NULL;
-//    curr = head;
-//
-//    while (fgets(curr->contents, MAXLEN, fp))
-//    {
-//        lp = (Line *)malloc(sizeof(Line));
-//        lp->prev = curr;
-//        curr->next = lp;
-//        curr = lp;
-//        nr_lines++;
-//    }
-//    curr->next = NULL;
-//}
-//
-//void draw(Line *l)
-//{
-//    int i;
-//    clear();
-//    for (i = 0; i < TERM_ROWS && l != NULL; i++, l = l->next)
-//        addstr(l->contents);
-//}
