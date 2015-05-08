@@ -22,16 +22,10 @@ int CURSOR = 0, START_INDEX = 0;
 
 void addline(const char* str);
 void add_fline(const char *str, ...);
-void draw(v_process** proc_list, int proc_num);
+void draw(v_process** v_proc_list, size_t* proc_num);
+void refresh(v_process** & v_proc_list, size_t* proc_num);
 
 int main(int argc, char **argv) {
-
-
-    kinfo_proc* proc_list = NULL;
-    size_t proc_num = 0;
-    get_bsd_process_list(&proc_list, &proc_num);
-    v_process* v_proc_list[proc_num];
-
 
 
 
@@ -42,7 +36,6 @@ int main(int argc, char **argv) {
     getmaxyx(stdscr, TERM_ROWS, TERM_COLS);
 
 
-
     start_color();
     init_pair(SELECTED, COLOR_BLACK, COLOR_CYAN);
     init_pair(NORMAL, COLOR_WHITE, COLOR_BLACK);
@@ -51,21 +44,18 @@ int main(int argc, char **argv) {
 
 
 
-    for (int i = 0; i < proc_num; ++i) {
-        struct kinfo_proc* process = &proc_list[i];
-        struct passwd* user = getpwuid(process->kp_eproc.e_ucred.cr_uid);
-        struct v_process* x = (v_process*) malloc(sizeof *x);
-        x->command = process->kp_proc.p_comm;
-        x->user = user->pw_name;
-        x->pid = process->kp_proc.p_pid;
-        v_proc_list[i] = x;
-    }
+
+    size_t proc_num = 0;
+    v_process** v_proc_list = NULL;
+
+
+    refresh(v_proc_list, &proc_num);
 
 
 
     addstr("\n");
 
-    draw(v_proc_list, proc_num);
+    draw(v_proc_list, &proc_num);
 
     int ch;
     while ((ch = getch()) != EOF && ch != 'q') {
@@ -94,8 +84,9 @@ int main(int argc, char **argv) {
         else if (ch == KEY_RIGHT){
             v_process* p = v_proc_list[CURSOR];
             kill(p->pid, SIGKILL);
+            refresh(v_proc_list, &proc_num);
         }
-        draw(v_proc_list, proc_num);
+        draw(v_proc_list, &proc_num);
     }
 
 
@@ -103,17 +94,47 @@ int main(int argc, char **argv) {
     return 0;
 }
 
-void draw(v_process** proc_list, int proc_num) {
+void refresh(v_process** & v_proc_list, size_t* proc_num) {
+    CURSOR = 0;
+    if (v_proc_list != NULL) {
+        for (int j = 0; j < *proc_num; ++j) {
+            struct v_process* p=  v_proc_list[j];
+            if (p != NULL)
+                free(p);
+        }
+    }
+
+    (*proc_num) = 0;
+    kinfo_proc* proc_list = NULL;
+    get_bsd_process_list(&proc_list, proc_num);
+
+    v_proc_list = (v_process**) malloc(*proc_num * sizeof(struct v_process *));
+
+    for (int i = 0; i < *proc_num; ++i) {
+        struct kinfo_proc* process = &proc_list[i];
+        struct passwd* user = getpwuid(process->kp_eproc.e_ucred.cr_uid);
+        struct v_process* x = (v_process*) malloc(sizeof *x);
+        x->command = process->kp_proc.p_comm;
+        x->user = user->pw_name;
+        x->pid = process->kp_proc.p_pid;
+        v_proc_list[i] = x;
+    }
+
+
+}
+
+void draw(v_process** v_proc_list, size_t* proc_num) {
     clear();
 
     attron(COLOR_PAIR(HEADER_COLOR));
     addline("   PID    USER COMMAND");
     attroff(COLOR_PAIR(HEADER_COLOR));
 
-    if (proc_list!=NULL){
+    if (v_proc_list!=NULL){
         for (int i = START_INDEX; i < TERM_ROWS; ++i) {
-            if (i < proc_num){
-                v_process* p = proc_list[i];
+//            add_fline("%i", i);
+            if (i < *proc_num){
+                v_process* p = v_proc_list[i];
 
                 if (CURSOR == i) {
                     attron(COLOR_PAIR(SELECTED));
@@ -128,6 +149,9 @@ void draw(v_process** proc_list, int proc_num) {
 
             }
         }
+    }
+    else {
+        addline("v_proc_list is NULL\n");
     }
 }
 
