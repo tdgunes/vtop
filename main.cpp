@@ -16,9 +16,8 @@ struct v_process {
     char* command;
 };
 
-
 int TERM_ROWS = 0, TERM_COLS = 0;
-int CURSOR = 0, START_INDEX = 0;
+int CURSOR = 0, START_INDEX = 0, COUNT = 0;
 
 void addline(const char* str);
 void add_fline(const char *str, ...);
@@ -72,13 +71,15 @@ int main(int argc, char **argv) {
             }
         }
         else if (ch == KEY_DOWN) {
-            if (CURSOR == TERM_ROWS - 1) {
-                if (START_INDEX+TERM_ROWS-2 < proc_num)
+            if ((START_INDEX+CURSOR) <= proc_num - 2) {
+                if (CURSOR == TERM_ROWS - 2) {
                     START_INDEX++;
+                }
+                else {
+                    CURSOR++;
+                }
             }
-            else {
-                CURSOR++;
-            }
+
 
         }
         else if (ch == KEY_RIGHT){
@@ -131,12 +132,13 @@ void draw(v_process** v_proc_list, size_t* proc_num) {
     attroff(COLOR_PAIR(HEADER_COLOR));
 
     if (v_proc_list!=NULL){
-        for (int i = START_INDEX; i < TERM_ROWS; ++i) {
-//            add_fline("%i", i);
-            if (i < *proc_num){
+        COUNT = 0;
+
+        for (int i = START_INDEX; i < *proc_num; ++i) {
+            if (COUNT < TERM_ROWS){
                 v_process* p = v_proc_list[i];
 
-                if (CURSOR == i) {
+                if (CURSOR+START_INDEX == i) {
                     attron(COLOR_PAIR(SELECTED));
                     add_fline(" %5i %7s %s", p->pid,  p->user, p->command);
                     attroff(COLOR_PAIR(SELECTED));
@@ -148,6 +150,7 @@ void draw(v_process** v_proc_list, size_t* proc_num) {
                 }
 
             }
+            COUNT++;
         }
     }
     else {
