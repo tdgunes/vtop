@@ -87,6 +87,10 @@ int main(int argc, char **argv) {
             kill(p->pid, SIGKILL);
             refresh(v_proc_list, &proc_num);
         }
+        else if (ch == 'r') {
+            refresh(v_proc_list, &proc_num);
+        }
+
         draw(v_proc_list, &proc_num);
     }
 
