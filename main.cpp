@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <signal.h>
-#include "process.h"
+#include "bsd.h"
 
 #define HEADER_COLOR 1
 #define SELECTED 2
@@ -18,6 +18,11 @@ struct v_process {
 
 int TERM_ROWS = 0, TERM_COLS = 0;
 int CURSOR = 0, START_INDEX = 0, COUNT = 0;
+
+std::string PHY_MEM;
+std::string CPU_ID;
+std::string MODEL;
+std::string UPTIME;
 
 void addline(const char* str);
 void add_fline(const char *str, ...);
@@ -100,6 +105,11 @@ int main(int argc, char **argv) {
 }
 
 void refresh(v_process** & v_proc_list, size_t* proc_num) {
+    PHY_MEM = get_physical_memory();
+    CPU_ID = get_cpu_id();
+    MODEL = get_model_info();
+    UPTIME = get_boottime();
+
     CURSOR = 0;
     if (v_proc_list != NULL) {
         for (int j = 0; j < *proc_num; ++j) {
@@ -130,6 +140,15 @@ void refresh(v_process** & v_proc_list, size_t* proc_num) {
 
 void draw(v_process** v_proc_list, size_t* proc_num) {
     clear();
+
+    attron(COLOR_PAIR(HEADER_COLOR));
+    addline(" System Information:");
+    attroff(COLOR_PAIR(HEADER_COLOR));
+
+    add_fline(" Model: %s", MODEL.c_str());
+    add_fline(" CPU: %s ", CPU_ID.c_str());
+    add_fline(" Boot Time: %s ", UPTIME.c_str());
+    add_fline(" Physical Memory: %s", PHY_MEM.c_str());
 
     attron(COLOR_PAIR(HEADER_COLOR));
     addline("   PID    USER COMMAND");
