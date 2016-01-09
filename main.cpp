@@ -30,41 +30,26 @@ void draw(v_process** v_proc_list, size_t* proc_num);
 void refresh(v_process** & v_proc_list, size_t* proc_num);
 
 int main(int argc, char **argv) {
-
-
-
     WINDOW* window = initscr();
     noecho();
     signal (SIGWINCH, NULL);
     keypad(stdscr, TRUE);   // for KEY_UP, KEY_DOWN
     getmaxyx(stdscr, TERM_ROWS, TERM_COLS);
 
-
     start_color();
     init_pair(SELECTED, COLOR_BLACK, COLOR_CYAN);
     init_pair(NORMAL, COLOR_WHITE, COLOR_BLACK);
     init_pair(HEADER_COLOR, COLOR_BLACK, COLOR_GREEN);
 
-
-
-
-
     size_t proc_num = 0;
     v_process** v_proc_list = NULL;
-
-
     refresh(v_proc_list, &proc_num);
 
-
-
     addstr("\n");
-
     draw(v_proc_list, &proc_num);
 
     int ch;
     while ((ch = getch()) != EOF && ch != 'q') {
-
-
         if (ch == KEY_UP) {
             if (CURSOR == 0){
                 if (START_INDEX > 0)
